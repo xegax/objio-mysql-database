@@ -1,5 +1,5 @@
 import * as mysql from 'mysql';
-import { Database as Base, DatabaseArgs } from '../client/database';
+import { Database as Base, Table } from '../client/database';
 import {
   TableNameArgs,
   TableColsArgs,
@@ -110,14 +110,18 @@ function get<T = Object>(db: mysql.Connection, sql: string): Promise<T> {
 function createTable(db: mysql.Connection, table: string, columns: Columns): Promise<any> {
   const sql = columns.map(column => {
     let value = `${column.name} ${column.type}`;
-    if (column.notNull)
-      value += ' NOT NULL';
-    if (column.primary)
-      value += ' PRIMARY KEY';
     if (column.autoInc)
-      value += ' AUTOINCREMENT';
+      value += ' AUTO_INCREMENT';
+
     if (column.unique)
       value += ' UNIQUE';
+
+    if (column.notNull)
+      value += ' NOT NULL';
+
+    if (column.primary)
+      value += ' PRIMARY KEY';
+
     return value;
   }).join(', ');
   return exec(db, `create table ${table} (${sql})`);
@@ -128,34 +132,36 @@ function deleteTable(db: mysql.Connection, table: string): Promise<void> {
 }
 
 function loadTableInfo(db: mysql.Connection, table: string): Promise<Columns> {
-  return all<ColumnAttr>(db, `pragma table_info(${table})`).then(res => {
-    return res.map(row => ({name: row['name'], type: row['type']}));
+  return all<ColumnAttr>(db, `describe ${table}`).then(res => {
+    return res.map(row => ({name: row['Field'], type: row['Type']}));
   });
 }
 
 function insert(db: mysql.Connection, table: string, values: {[col: string]: Array<string>}): Promise<any> {
   const cols = Object.keys(values);
-  const valsHolder = cols.map(() => '?').join(', ');
-  const allValsHolder = values[cols[0]].map(() => `( ${valsHolder} )`).join(', ');
 
-  const valuesArr = [];
+  const rows: Array<string> = [];
   const rowsNum = values[cols[0]].length;
   for (let n = 0;  n < rowsNum; n++) {
-    cols.forEach(col => {
-      valuesArr.push(values[col][n]);
-    });
+    rows.push( '(' + cols.map(col => {
+      const value = values[col][n];
+      if (!value)
+        return 'NULL';
+      return mysql.escape(`${value}`);
+    } ).join(',') + ')' );
   }
 
-  const sql = `insert into ${table}(${cols.join(',')}) values ${allValsHolder};`;
-  return run(db, sql, valuesArr);
+  const sql = `insert into ${table}(${cols.join(',')}) values ${rows.join(',')};`;
+  return run(db, sql, []);
 }
 
 const servers: {[key: string]: mysql.ConnectionConfig} = {
   'local': {
-    host: '127.0.0.1',
+    host: 'localhost',
     port: 3306,
     user: 'root',
-    password: 'root'
+    password: 'ads(ED(rB2kD',
+    database: 'test'
   }
 };
 
@@ -174,7 +180,10 @@ export class Database extends Base {
       },
       onLoad: () => {
         console.log('mysql db load');
-        return this.openDB({ ...servers[this.dbServer] });
+        return (
+          this.openDB({ ...servers[this.dbServer] })
+          .then(() => this.updateTables())
+        );
       }
     });
 
@@ -188,6 +197,25 @@ export class Database extends Base {
       createSubtable: this.createSubtable,
       pushCells: this.pushCells
     });
+  }
+
+  updateTables(): Promise<boolean> {
+    return (
+      all(this.db, 'show tables')
+      .then(tables => {
+        const arr: Array<Table> = tables.map(table => {
+          return { name: table[Object.keys(table)[0]] };
+        });
+
+        if (JSON.stringify(arr) == JSON.stringify(this.tableInfo))
+          return false;
+
+        this.tableInfo = arr;
+        this.holder.save();
+
+        return true;
+      })
+    );
   }
 
   loadTableInfo = (args: TableNameArgs) => {
@@ -210,11 +238,19 @@ export class Database extends Base {
   }
 
   createTable = (args: TableColsArgs): Promise<void> => {
-    return createTable(this.db, args.table, args.columns);
+    return (
+      createTable(this.db, args.table, args.columns)
+      .then(() => this.updateTables())
+      .then(() => {})
+    );
   }
 
   deleteTable = (args: TableNameArgs): Promise<void> => {
-    return deleteTable(this.db, args.table);
+    return (
+      deleteTable(this.db, args.table)
+      .then(() => this.updateTables())
+      .then(() => {})
+    );
   }
 
   loadCells = (args: LoadCellsArgs): Promise<Cells> => {
@@ -305,7 +341,8 @@ export class Database extends Base {
       cols = [args.distinct.column, `count(${args.distinct.column}) as count`].join(', ');
     }
 
-    const sql = `create temp table ${newTable} as select ${cols} from ${args.table} ${where} ${groupBy} ${orderBy}`;
+    let sql = `create temporary table ${newTable}`;
+    sql += ` as select ${cols} from ${args.table} ${where} ${groupBy} ${orderBy}`;
     console.log(sql);
 
     return (
@@ -318,7 +355,6 @@ export class Database extends Base {
   }
 
   static SERIALIZE: SERIALIZER = () => ({
-    ...Base.SERIALIZE(),
-    'connArgs': { type: 'json', tags: ['sr'] }
+    ...Base.SERIALIZE()
   })
 }

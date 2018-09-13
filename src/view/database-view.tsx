@@ -4,9 +4,6 @@ import { Database, DatabaseArgs } from '../client/database';
 
 export { Database };
 
-interface State {
-}
-
 function getAvailableServers(): Array<string> {
   return ['local'];
 }
@@ -16,16 +13,34 @@ export interface Props {
 }
 
 export class DatabaseView extends React.Component<Props> {
+  subscriber = () => {
+    this.setState({});
+  }
+
+  componentDidMount() {
+    this.props.model.holder.subscribe(this.subscriber);
+  }
+
+  componentWillUnmount() {
+    this.props.model.holder.unsubscribe(this.subscriber);
+  }
+
   render() {
     return (
       <div>
-        server: {this.props.model.getDBServer()}
+        <div>server: {this.props.model.getDBServer()}</div>
+        <div>tables ({this.props.model.getTableInfo().length})</div>
+        <div>
+          {this.props.model.getTableInfo().map((table, i) => {
+            return <div key={i}>{table.name}</div>;
+          })}
+        </div>
       </div>
     );
   }
 }
 
-export class DatabaseConfig extends ConfigBase<DatabaseArgs, State> {
+export class DatabaseConfig extends ConfigBase<DatabaseArgs, {}> {
   componentDidMount() {
     const lst = getAvailableServers();
     this.config.dbServer = lst[0];
@@ -40,7 +55,7 @@ export class DatabaseConfig extends ConfigBase<DatabaseArgs, State> {
     return (
       <select value={this.config.dbServer} onChange={this.onChange}>
         {getAvailableServers().map(srv => {
-          <option value={srv}>{srv}</option>
+          return <option value={srv}>{srv}</option>;
         })}
       </select>
     );
