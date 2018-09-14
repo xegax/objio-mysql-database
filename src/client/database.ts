@@ -1,8 +1,9 @@
 import { SERIALIZER } from 'objio';
 import { Database as Base } from 'objio-object/client/database';
+import { Connect } from './connect';
 
 export interface DatabaseArgs {
-  dbServer: string;
+  connect: Connect;
 }
 
 export interface Table {
@@ -10,18 +11,18 @@ export interface Table {
 }
 
 export class Database extends Base {
-  protected dbServer: string;
+  protected connect: Connect;
   protected tableInfo = Array<Table>();
 
   constructor(args?: DatabaseArgs) {
     super();
 
     if (args)
-      this.dbServer = args.dbServer;
+      this.connect = args.connect;
   }
 
-  getDBServer(): string {
-    return this.dbServer;
+  getConnect(): Connect {
+    return this.connect;
   }
 
   getTableInfo(): Array<Table> {
@@ -31,7 +32,7 @@ export class Database extends Base {
   static TYPE_ID = 'MySQLDatabase';
   static SERIALIZE: SERIALIZER = () => ({
     ...Base.SERIALIZE(),
-    'dbServer':   { type: 'string', const: true },
+    'connect':    { type: 'object', const: true },
     'tableInfo':  { type: 'json' }
   })
 }

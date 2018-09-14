@@ -17,6 +17,7 @@ import {
   CreateSubtableResult
 } from 'objio-object/client/table';
 import { SERIALIZER } from 'objio';
+import { Connect } from './connect';
 
 export function getCompSqlCondition(cond: CompoundCond, col?: string): string {
   let sql = '';
@@ -52,14 +53,6 @@ function getSqlCondition(cond: Condition): string {
   const op = value.inverse ? '!=' : '=';
   return `${value.column}${op}"${value.value}"`;
 }
-
-/*function srPromise(db: mysql.Connection, callback: (resolve, reject) => void): Promise<any> {
-  return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      callback(resolve, reject);
-    });
-  });
-}*/
 
 function exec(db: mysql.Connection, sql: string): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -155,20 +148,11 @@ function insert(db: mysql.Connection, table: string, values: {[col: string]: Arr
   return run(db, sql, []);
 }
 
-const servers: {[key: string]: mysql.ConnectionConfig} = {
-  'local': {
-    host: 'localhost',
-    port: 3306,
-    user: 'root',
-    password: 'ads(ED(rB2kD',
-    database: 'test'
-  }
-};
-
 let subtableCounter: number = 0;
 export class Database extends Base {
   private db: mysql.Connection;
   private subtableMap: {[key: string]: { subtable: string, columns: Array<ColumnAttr> }} = {};
+  protected connect: Connect;
 
   constructor() {
     super();
@@ -176,12 +160,12 @@ export class Database extends Base {
     this.holder.addEventHandler({
       onCreate: () => {
         console.log('mysql db create');
-        return this.openDB({ ...servers[this.dbServer] });
+        return this.openDB();
       },
       onLoad: () => {
         console.log('mysql db load');
         return (
-          this.openDB({ ...servers[this.dbServer] })
+          this.openDB()
           .then(() => this.updateTables())
         );
       }
@@ -222,12 +206,17 @@ export class Database extends Base {
     return loadTableInfo(this.db, args.table);
   }
 
-  openDB(args: mysql.ConnectionConfig): Promise<mysql.Connection> {
+  openDB(): Promise<mysql.Connection> {
     if (this.db)
       return Promise.resolve(this.db);
 
     return new Promise((resolve, reject) => {
-      this.db = mysql.createConnection(args);
+      const cfg: mysql.ConnectionConfig = {
+        ...this.connect.getConfig(),
+        password: this.connect.getPassword()
+      };
+
+      this.db = mysql.createConnection(cfg);
       this.db.connect(err => {
         if (err)
           reject(err);

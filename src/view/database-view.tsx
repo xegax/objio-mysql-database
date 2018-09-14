@@ -1,12 +1,9 @@
 import * as React from 'react';
 import { ConfigBase } from 'objio-object/view/config';
 import { Database, DatabaseArgs } from '../client/database';
+import { Connect } from '../client/connect';
 
 export { Database };
-
-function getAvailableServers(): Array<string> {
-  return ['local'];
-}
 
 export interface Props {
   model: Database;
@@ -25,10 +22,20 @@ export class DatabaseView extends React.Component<Props> {
     this.props.model.holder.unsubscribe(this.subscriber);
   }
 
+  getServer(): string {
+    const cfg = this.props.model.getConnect().getConfig();
+    return `${cfg.user}@${cfg.host}:${cfg.port}`;
+  }
+
+  getDatabase(): string {
+    return this.props.model.getConnect().getConfig().database;
+  }
+
   render() {
     return (
       <div>
-        <div>server: {this.props.model.getDBServer()}</div>
+        <div>server: {this.getServer()}</div>
+        <div>database: {this.getDatabase()}</div>
         <div>tables ({this.props.model.getTableInfo().length})</div>
         <div>
           {this.props.model.getTableInfo().map((table, i) => {
@@ -40,22 +47,43 @@ export class DatabaseView extends React.Component<Props> {
   }
 }
 
-export class DatabaseConfig extends ConfigBase<DatabaseArgs, {}> {
+interface State {
+  connId: string;
+}
+
+export class DatabaseConfig extends ConfigBase<DatabaseArgs, State> {
+  state: Readonly<Partial<State>> = {};
+
+  getAvailableConnects(): Array<Connect> {
+    return (
+      this.props.objects()
+      .filter(obj => {
+        return obj instanceof Connect;
+      })
+      .map(obj => obj as Connect)
+    );
+  }
+
   componentDidMount() {
-    const lst = getAvailableServers();
-    this.config.dbServer = lst[0];
+    const lst = this.getAvailableConnects();
+    if (!lst.length)
+      return;
+
+    this.config.connect = lst[0];
+    this.setState({ connId: lst[0].holder.getID() });
   }
 
   onChange = (evt: React.ChangeEvent<HTMLSelectElement>) => {
-    this.config.dbServer = evt.currentTarget.value;
-    this.setState({});
+    this.config.connect = this.getAvailableConnects().find(obj => obj.holder.getID() == evt.currentTarget.value);
+    if (this.config.connect)
+      this.setState({ connId: this.config.connect.holder.getID() });
   }
 
   render() {
     return (
-      <select value={this.config.dbServer} onChange={this.onChange}>
-        {getAvailableServers().map(srv => {
-          return <option value={srv}>{srv}</option>;
+      <select value={this.state.connId} onChange={this.onChange}>
+        {this.getAvailableConnects().map(conn => {
+          return <option value={conn.holder.getID()}>{conn.toString()}</option>;
         })}
       </select>
     );
