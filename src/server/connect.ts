@@ -18,6 +18,7 @@ export class Connect extends Base {
 
   setPassword(args: {password: string}): Promise<void> {
     this.password = args.password;
+    this.holder.save();
     return Promise.resolve();
   }
 

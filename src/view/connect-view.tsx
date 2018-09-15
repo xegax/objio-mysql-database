@@ -20,7 +20,6 @@ export class ConnectConfig extends ConfigBase<ConnectArgs> {
   componentDidMount() {
     this.config.host = 'localhost';
     this.config.port = 3306;
-    this.config.database = 'test';
     this.config.user = 'root';
     this.setState({});
   }
@@ -62,15 +61,6 @@ export class ConnectConfig extends ConfigBase<ConnectArgs> {
               <input
                 defaultValue=''
                 onChange={evt => this.config.password = evt.currentTarget.value}
-              />
-            </td>
-          </tr>
-          <tr>
-            <td>database</td>
-            <td>
-              <input
-                defaultValue={this.config.database}
-                onChange={evt => this.config.database = evt.currentTarget.value}
               />
             </td>
           </tr>

@@ -160,12 +160,17 @@ export class Database extends Base {
     this.holder.addEventHandler({
       onCreate: () => {
         console.log('mysql db create');
-        return this.openDB();
+        return (
+          this.openDB()
+          .then(() => exec(this.db, `create database ${this.database}`))
+          .then(() => exec(this.db, `use ${this.database}`))
+        );
       },
       onLoad: () => {
         console.log('mysql db load');
         return (
           this.openDB()
+          .then(() => exec(this.db, `use ${this.database}`))
           .then(() => this.updateTables())
         );
       }

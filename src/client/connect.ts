@@ -4,7 +4,6 @@ import { SERIALIZER } from 'objio';
 export interface ConnectArgs {
   host: string;
   port: number;
-  database: string;
   user: string;
   password?: string;
 }
@@ -39,12 +38,12 @@ export class Connect extends ObjectBase {
   }
 
   toString() {
-    return `${this.config.user}@${this.config.host}:${this.config.port} - ${this.config.database}`;
+    return `${this.config.user}@${this.config.host}:${this.config.port}`;
   }
 
   static TYPE_ID = 'MySQLDatabaseConnection';
   static SERIALIZE: SERIALIZER = () => ({
     ...ObjectBase.SERIALIZE(),
     'config':   { type: 'json' }
-  });
+  })
 }

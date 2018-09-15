@@ -28,7 +28,7 @@ export class DatabaseView extends React.Component<Props> {
   }
 
   getDatabase(): string {
-    return this.props.model.getConnect().getConfig().database;
+    return this.props.model.getDatabase();
   }
 
   render() {
@@ -47,7 +47,7 @@ export class DatabaseView extends React.Component<Props> {
   }
 }
 
-interface State {
+export interface State {
   connId: string;
 }
 
@@ -70,6 +70,7 @@ export class DatabaseConfig extends ConfigBase<DatabaseArgs, State> {
       return;
 
     this.config.connect = lst[0];
+    this.config.database = 'test';
     this.setState({ connId: lst[0].holder.getID() });
   }
 
@@ -81,11 +82,37 @@ export class DatabaseConfig extends ConfigBase<DatabaseArgs, State> {
 
   render() {
     return (
-      <select value={this.state.connId} onChange={this.onChange}>
-        {this.getAvailableConnects().map(conn => {
-          return <option value={conn.holder.getID()}>{conn.toString()}</option>;
-        })}
-      </select>
+      <div>
+        <table>
+          <tbody>
+            <tr>
+              <td>
+                connection
+              </td>
+              <td>
+                <select value={this.state.connId} onChange={this.onChange}>
+                  {this.getAvailableConnects().map(conn => {
+                    return <option value={conn.holder.getID()}>{conn.toString()}</option>;
+                  })}
+                </select>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                database
+              </td>
+              <td>
+                <input
+                  defaultValue={this.config.database}
+                  onChange={e => {
+                    this.config.database = e.currentTarget.value;
+                  }}
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     );
   }
 }
