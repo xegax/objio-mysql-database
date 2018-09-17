@@ -1,5 +1,5 @@
 import * as mysql from 'mysql';
-import { Database as Base, Table } from '../client/database';
+import { Database as Base, TableInfo } from '../client/database';
 import {
   TableNameArgs,
   TableColsArgs,
@@ -117,7 +117,18 @@ function createTable(db: mysql.Connection, table: string, columns: Columns): Pro
 
     return value;
   }).join(', ');
-  return exec(db, `create table ${table} (${sql})`);
+
+  return (
+    exec(db, `create table ${table} (${sql})`)
+    .then(() => {
+      return Promise.all(columns.filter(col => col.index).map(col => {
+        let colName = col.name;
+        if (col.type == 'TEXT')
+          colName = `${colName}(10)`;
+        return exec(db, `create index idx_${col.name} on ${table}(${colName})`);
+      }));
+    })
+  );
 }
 
 function deleteTable(db: mysql.Connection, table: string): Promise<void> {
@@ -153,7 +164,7 @@ export class Database extends Base {
   private db: mysql.Connection;
   private subtableMap: {[key: string]: { subtable: string, columns: Array<ColumnAttr> }} = {};
   protected connect: Connect;
-
+  
   constructor() {
     super();
 
@@ -162,8 +173,9 @@ export class Database extends Base {
         console.log('mysql db create');
         return (
           this.openDB()
-          .then(() => exec(this.db, `create database ${this.database}`))
+          .then(() => exec(this.db, `create database if not exists ${this.database}`))
           .then(() => exec(this.db, `use ${this.database}`))
+          .then(() => this.updateTables())
         );
       },
       onLoad: () => {
@@ -192,7 +204,7 @@ export class Database extends Base {
     return (
       all(this.db, 'show tables')
       .then(tables => {
-        const arr: Array<Table> = tables.map(table => {
+        const arr: Array<TableInfo> = tables.map(table => {
           return { name: table[Object.keys(table)[0]] };
         });
 
@@ -336,6 +348,7 @@ export class Database extends Base {
     }
 
     let sql = `create temporary table ${newTable}`;
+    // sql += ' ENGINE=MEMORY ';
     sql += ` as select ${cols} from ${args.table} ${where} ${groupBy} ${orderBy}`;
     console.log(sql);
 

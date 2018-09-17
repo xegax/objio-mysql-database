@@ -1,7 +1,8 @@
 import * as React from 'react';
-import { ConfigBase } from 'objio-object/view/config';
+import { ConfigBase, ClientClass } from 'objio-object/view/config';
 import { Database, DatabaseArgs } from '../client/database';
 import { Connect } from '../client/connect';
+import { OBJIOItem } from 'objio';
 
 export { Database };
 
@@ -31,16 +32,41 @@ export class DatabaseView extends React.Component<Props> {
     return this.props.model.getDatabase();
   }
 
+  renderTable() {
+    const table = this.props.model.getTable();
+    if (!table.getTableName())
+      return;
+
+    const objClass: ClientClass = OBJIOItem.getClass(table) as ClientClass;
+    const views = objClass.getViewDesc();
+    return (
+      views.views[0].view({ model: table })
+    );
+  }
+
   render() {
     return (
-      <div>
-        <div>server: {this.getServer()}</div>
-        <div>database: {this.getDatabase()}</div>
-        <div>tables ({this.props.model.getTableInfo().length})</div>
-        <div>
-          {this.props.model.getTableInfo().map((table, i) => {
-            return <div key={i}>{table.name}</div>;
-          })}
+      <div style={{display: 'flex', flexGrow: 1, flexDirection: 'column'}}>
+        <div style={{flexGrow: 0}}>
+          <div>server: {this.getServer()}</div>
+          <div>database: {this.getDatabase()}</div>
+          <div>tables ({this.props.model.getTableInfo().length})</div>
+          <div>
+            {this.props.model.getTableInfo().map((table, i) => {
+              return (
+              <div key={i} onClick={() => {
+                this.props.model.getTable().setTableName(table.name)
+                .then(() => {
+                  this.props.model.holder.notify();
+                });
+              }}>
+                {table.name}
+              </div>);
+            })}
+          </div>
+        </div>
+        <div style={{display: 'flex', flexGrow: 1}}>
+          {this.renderTable()}
         </div>
       </div>
     );
@@ -57,9 +83,7 @@ export class DatabaseConfig extends ConfigBase<DatabaseArgs, State> {
   getAvailableConnects(): Array<Connect> {
     return (
       this.props.objects()
-      .filter(obj => {
-        return obj instanceof Connect;
-      })
+      .filter(obj => obj instanceof Connect)
       .map(obj => obj as Connect)
     );
   }
