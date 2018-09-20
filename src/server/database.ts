@@ -164,7 +164,7 @@ export class Database extends Base {
   private db: mysql.Connection;
   private subtableMap: {[key: string]: { subtable: string, columns: Array<ColumnAttr> }} = {};
   protected connect: Connect;
-  
+
   constructor() {
     super();
 
@@ -172,7 +172,7 @@ export class Database extends Base {
       onCreate: () => {
         console.log('mysql db create');
         return (
-          this.openDB()
+          this.openDB(false)
           .then(() => exec(this.db, `create database if not exists ${this.database}`))
           .then(() => exec(this.db, `use ${this.database}`))
           .then(() => this.updateTables())
@@ -182,7 +182,6 @@ export class Database extends Base {
         console.log('mysql db load');
         return (
           this.openDB()
-          .then(() => exec(this.db, `use ${this.database}`))
           .then(() => this.updateTables())
         );
       }
@@ -202,28 +201,36 @@ export class Database extends Base {
 
   updateTables(): Promise<boolean> {
     return (
-      all(this.db, 'show tables')
-      .then(tables => {
-        const arr: Array<TableInfo> = tables.map(table => {
-          return { name: table[Object.keys(table)[0]] };
-        });
+      this.openDB()
+      .then(() => {
+        return (
+          all(this.db, 'show tables')
+          .then(tables => {
+            const arr: Array<TableInfo> = tables.map(table => {
+              return { name: table[Object.keys(table)[0]] };
+            });
 
-        if (JSON.stringify(arr) == JSON.stringify(this.tableInfo))
-          return false;
+            if (JSON.stringify(arr) == JSON.stringify(this.tableInfo))
+              return false;
 
-        this.tableInfo = arr;
-        this.holder.save();
+            this.tableInfo = arr;
+            this.holder.save();
 
-        return true;
+            return true;
+          })
+        );
       })
     );
   }
 
-  loadTableInfo = (args: TableNameArgs) => {
-    return loadTableInfo(this.db, args.table);
+  loadTableInfo = (args: TableNameArgs): Promise<Array<ColumnAttr>> => {
+    return (
+      this.openDB()
+      .then(() => loadTableInfo(this.db, args.table))
+    );
   }
 
-  openDB(): Promise<mysql.Connection> {
+  openDB(useDB: boolean = true): Promise<mysql.Connection> {
     if (this.db)
       return Promise.resolve(this.db);
 
@@ -233,6 +240,9 @@ export class Database extends Base {
         password: this.connect.getPassword()
       };
 
+      if (useDB)
+        cfg.database = this.database;
+
       this.db = mysql.createConnection(cfg);
       this.db.connect(err => {
         if (err)
@@ -240,22 +250,31 @@ export class Database extends Base {
         else
           resolve(this.db);
       });
+
+      this.db.on('end', () => {
+        this.db = null;
+      });
+
+      this.db.on('error', err => {
+        console.log(err);
+        this.db = null;
+      });
     });
   }
 
   createTable = (args: TableColsArgs): Promise<void> => {
     return (
-      createTable(this.db, args.table, args.columns)
-      .then(() => this.updateTables())
-      .then(() => {})
+      this.openDB()
+      .then(() => createTable(this.db, args.table, args.columns))
+      .then(() => this.updateTables() as Promise<any>)
     );
   }
 
   deleteTable = (args: TableNameArgs): Promise<void> => {
     return (
-      deleteTable(this.db, args.table)
-      .then(() => this.updateTables())
-      .then(() => {})
+      this.openDB()
+      .then(() => deleteTable(this.db, args.table))
+      .then(() => this.updateTables() as Promise<any>)
     );
   }
 
@@ -267,7 +286,8 @@ export class Database extends Base {
 
     const sql = `select * from ${table} ${where} limit ? offset ?`;
     return (
-      all<Object>(this.db, sql, [count, first])
+      this.openDB()
+      .then(() => all<Object>(this.db, sql, [count, first]))
       .then(rows => {
         return rows.map(row => Object.keys(row).map(key => row[key]));
       })
@@ -276,12 +296,16 @@ export class Database extends Base {
 
   pushCells = (args: PushRowArgs & { table: string }): Promise<number> => {
     const values = {...args.values};
-    return insert(this.db, args.table, values);
+    return (
+      this.openDB()
+      .then(() => insert(this.db, args.table, values))
+    );
   }
 
   loadRowsCount = (args: TableNameArgs): Promise<number> => {
     return (
-      get<{count: number}>(this.db, `select count(*) as count from ${args.table}`)
+      this.openDB()
+      .then(() => get<{count: number}>(this.db, `select count(*) as count from ${args.table}`))
       .then(res => res.count)
     );
   }
@@ -289,7 +313,10 @@ export class Database extends Base {
   getNumStats = (args: NumStatsArgs): Promise<NumStats> => {
     const { table, column } = args;
     const sql = `select min(${column}) as min, max(${column}) as max from ${table} where ${column}!=""`;
-    return get<NumStats>(this.db, sql);
+    return (
+      this.openDB()
+      .then(() => get<NumStats>(this.db, sql))
+    );
   }
 
   getColumns(table: string): Promise<Columns> {
@@ -298,7 +325,7 @@ export class Database extends Base {
 
   createSubtable = (args: SubtableAttrs & { table: string }): Promise<CreateSubtableResult> => {
     return (
-      this.getColumns(args.table)
+      this.loadTableInfo({ table: args.table })
       .then(columns => {
         return this.createSubtableImpl({...args, columns});
       })
@@ -309,11 +336,13 @@ export class Database extends Base {
     let tableKey = JSON.stringify(args);
     const subtable = this.subtableMap[tableKey];
     if (subtable) {
-      return this.loadRowsCount({table: subtable.subtable})
-      .then(rowsNum => ({
-        ...subtable,
-        rowsNum
-      }));
+      return (
+        this.loadRowsCount({table: subtable.subtable})
+        .then(rowsNum => ({
+          ...subtable,
+          rowsNum
+        }))
+      );
     }
 
     let newTable = 'tmp_table_' + subtableCounter++;
@@ -353,7 +382,8 @@ export class Database extends Base {
     console.log(sql);
 
     return (
-      exec(this.db, sql)
+      this.openDB()
+      .then(() => exec(this.db, sql))
       .then(() => this.loadRowsCount({table: newTable}))
       .then(rowsNum => {
         return { ...this.subtableMap[tableKey], rowsNum };
