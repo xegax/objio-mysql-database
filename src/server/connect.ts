@@ -8,7 +8,10 @@ export class Connect extends Base {
     super(args);
 
     this.holder.setMethodsToInvoke({
-      setPassword: (args: {password: string}) => this.setPassword(args)
+      setPassword: {
+        method: (args: {password: string}) => this.setPassword(args),
+        rights: 'write'
+      }
     });
   }
 
