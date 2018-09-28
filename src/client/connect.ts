@@ -34,7 +34,7 @@ export class Connect extends ObjectBase {
   }
 
   setPassword(args: {password: string}): Promise<void> {
-    return this.holder.invokeMethod('setPassword', args);
+    return this.holder.invokeMethod({method: 'setPassword', args});
   }
 
   toString() {
