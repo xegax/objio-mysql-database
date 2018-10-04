@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ConfigBase, ClientClass } from 'objio-object/view/config';
+import { ConfigBase, OBJIOItemClassViewable } from 'objio-object/view/config';
 import { Database, DatabaseArgs } from '../client/database';
 import { Connect } from '../client/connect';
 import { OBJIOItem } from 'objio';
@@ -37,7 +37,7 @@ export class DatabaseView extends React.Component<Props> {
     if (!table.getTableName())
       return;
 
-    const objClass: ClientClass = OBJIOItem.getClass(table) as ClientClass;
+    const objClass = OBJIOItem.getClass(table) as OBJIOItemClassViewable;
     const views = objClass.getViewDesc();
     return (
       views.views[0].view({ model: table })
