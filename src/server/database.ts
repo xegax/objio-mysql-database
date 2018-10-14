@@ -18,6 +18,7 @@ import {
 } from 'objio-object/client/table';
 import { SERIALIZER } from 'objio';
 import { Connect } from './connect';
+import { array } from 'prop-types';
 
 export function getCompSqlCondition(cond: CompoundCond, col?: string): string {
   let sql = '';
@@ -41,17 +42,25 @@ function getSqlCondition(cond: Condition): string {
   if (comp.op && comp.values)
     return getCompSqlCondition(comp);
 
-  const value = cond as ValueCond;
+  const condVal = cond as ValueCond;
 
-  if (Array.isArray(value.value) && value.value.length == 2) {
-    return `${value.column} >= ${value.value[0]} and ${value.column} <= ${value.value[1]}`;
-  } else if (typeof value.value == 'object') {
-    const val = value.value as CompoundCond;
-    return `${value.column} in (select ${value.column} from ${val.table} where ${getCompSqlCondition(val)})`;
+  if (Array.isArray(condVal.value) && condVal.value.length == 2) {
+    return `${condVal.column} >= ${condVal.value[0]} and ${condVal.column} <= ${condVal.value[1]}`;
+  } else if (typeof condVal.value == 'object') {
+    const val = condVal.value as CompoundCond;
+    return `${condVal.column} in (select ${condVal.column} from ${val.table} where ${getCompSqlCondition(val)})`;
   }
 
-  const op = value.inverse ? '!=' : '=';
-  return `${value.column}${op}"${value.value}"`;
+  let value = condVal.value;
+  let op: string;
+  if (condVal.like) {
+    op = condVal.inverse ? ' not like ' : ' like ';
+    if (value.indexOf('%') == -1 && value.indexOf('_') == -1)
+      value = '%' + value + '%';
+  } else {
+    op = condVal.inverse ? '!=' : '=';
+  }
+  return `${condVal.column}${op}"${value}"`;
 }
 
 function exec(db: mysql.Connection, sql: string): Promise<any> {
@@ -295,10 +304,30 @@ export class Database extends Base {
   }
 
   pushCells = (args: PushRowArgs & { table: string }): Promise<number> => {
-    const values = {...args.values};
+    const values = { ...args.values };
+
+    const removeRow = (idx: number) => {
+      console.log('removing row', idx);
+      if (idx == null || idx == NaN)
+        return false;
+
+      Object.keys(values)
+      .forEach(key => values[key].splice(idx, 1));
+
+      return true;
+    };
+
     return (
       this.openDB()
       .then(() => insert(this.db, args.table, values))
+      .catch(e => {
+        const err = e.toString();
+        const pos = err.indexOf(' at row ');
+        if (pos != -1 && removeRow( (+err.substr(pos + 8) - 1) ))
+          return this.pushCells(args);
+
+        return e;
+      })
     );
   }
 
