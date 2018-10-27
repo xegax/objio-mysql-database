@@ -82,6 +82,7 @@ function run(db: mysql.Connection, sql: string, params: Array<any>): Promise<any
       if (!err) {
         resolve();
       } else {
+        console.log(err);
         console.log('error at', sql);
         reject(err);
       }
@@ -152,20 +153,20 @@ function loadTableInfo(db: mysql.Connection, table: string): Promise<Columns> {
 
 function insert(db: mysql.Connection, table: string, values: {[col: string]: Array<string>}): Promise<any> {
   const cols = Object.keys(values);
+  const valsHolder = cols.map(() => '?').join(', ');
+  const allValsHolder = values[cols[0]].map(() => `( ${valsHolder} )`).join(', ');
 
-  const rows: Array<string> = [];
+  const valuesArr = [];
   const rowsNum = values[cols[0]].length;
   for (let n = 0;  n < rowsNum; n++) {
-    rows.push( '(' + cols.map(col => {
-      const value = values[col][n];
-      if (!value)
-        return 'NULL';
-      return mysql.escape(`${value}`);
-    } ).join(',') + ')' );
+    cols.forEach(col => {
+      let val = values[col][n];
+      valuesArr.push(val == '' ? null : val);
+    });
   }
 
-  const sql = `insert into ${table}(${cols.join(',')}) values ${rows.join(',')};`;
-  return run(db, sql, []);
+  const sql = `insert into ${table}(${cols.join(',')}) values ${allValsHolder};`;
+  return run(db, sql, valuesArr);
 }
 
 let subtableCounter: number = 0;
@@ -305,29 +306,9 @@ export class Database extends Base {
 
   pushCells = (args: PushRowArgs & { table: string }): Promise<number> => {
     const values = { ...args.values };
-
-    const removeRow = (idx: number) => {
-      console.log('removing row', idx);
-      if (idx == null || idx == NaN)
-        return false;
-
-      Object.keys(values)
-      .forEach(key => values[key].splice(idx, 1));
-
-      return true;
-    };
-
     return (
       this.openDB()
       .then(() => insert(this.db, args.table, values))
-      .catch(e => {
-        const err = e.toString();
-        const pos = err.indexOf(' at row ');
-        if (pos != -1 && removeRow( (+err.substr(pos + 8) - 1) ))
-          return this.pushCells(args);
-
-        return e;
-      })
     );
   }
 
