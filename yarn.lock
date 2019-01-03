@@ -43,6 +43,10 @@ bignumber.js@4.1.0:
   version "4.1.0"
   resolved "https://registry.yarnpkg.com/bignumber.js/-/bignumber.js-4.1.0.tgz#db6f14067c140bd46624815a7916c92d9b6c24b1"
 
+bluebird@^3.5.3:
+  version "3.5.3"
+  resolved "https://registry.yarnpkg.com/bluebird/-/bluebird-3.5.3.tgz#7d01c6f9616c9a51ab0f8c549a79dfe6ec33efa7"
+
 core-util-is@~1.0.0:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/core-util-is/-/core-util-is-1.0.2.tgz#b5fd54220aa2bc5ab57aab7140c940754503c1a7"
@@ -110,20 +114,21 @@ object-assign@^4.1.1:
   version "4.1.1"
   resolved "https://registry.yarnpkg.com/object-assign/-/object-assign-4.1.1.tgz#2109adc7965887cfc05cbbd442cac8bfbb360863"
 
-objio-object@^0.0.10:
-  version "0.0.10"
-  resolved "https://registry.yarnpkg.com/objio-object/-/objio-object-0.0.10.tgz#65f2785248bdf9274671c74d46838370e35bdf65"
+objio-object@^0.0.37:
+  version "0.0.37"
+  resolved "https://registry.yarnpkg.com/objio-object/-/objio-object-0.0.37.tgz#397739ded542b0b318c444dcbb69389475c900dd"
   dependencies:
-    objio "^0.0.30"
+    objio "^0.0.37"
     react "^16.4.1"
     react-dom "^16.4.1"
-    ts-react-ui "^0.1.10"
+    ts-react-ui "^0.1.37"
 
-objio@^0.0.30:
-  version "0.0.30"
-  resolved "https://registry.yarnpkg.com/objio/-/objio-0.0.30.tgz#4405256ad193572405432c3a354c5122784d4887"
+objio@^0.0.37:
+  version "0.0.37"
+  resolved "https://registry.yarnpkg.com/objio/-/objio-0.0.37.tgz#f339f9fce5c70ab33c2f514a6dda2f6e7b667b72"
   dependencies:
     axios "^0.18.0"
+    bluebird "^3.5.3"
     lodash "^4.17.4"
 
 process-nextick-args@~2.0.0:
@@ -187,12 +192,12 @@ string_decoder@~1.1.1:
   dependencies:
     safe-buffer "~5.1.0"
 
-ts-react-ui@^0.1.10:
-  version "0.1.10"
-  resolved "https://registry.yarnpkg.com/ts-react-ui/-/ts-react-ui-0.1.10.tgz#abe29d3837b21bade967a2c698b363ca1e52f652"
+ts-react-ui@^0.1.37:
+  version "0.1.37"
+  resolved "https://registry.yarnpkg.com/ts-react-ui/-/ts-react-ui-0.1.37.tgz#42d7d98989979d23788f33bffe110e9d75d71cf3"
   dependencies:
     font-awesome "^4.7.0"
-    objio "^0.0.30"
+    objio "^0.0.37"
     react "^16.4.1"
     react-dom "^16.4.1"
 
