@@ -1,5 +1,5 @@
 import * as mysql from 'mysql';
-import { Database as Base, TableInfo } from '../client/database';
+import { DatabaseBase } from '../base/database';
 import {
   TableNameArgs,
   TableColsArgs,
@@ -15,9 +15,10 @@ import {
   ValueCond,
   SubtableAttrs,
   CreateSubtableResult
-} from 'objio-object/base/table';
+} from 'objio-object/base/database/table';
 import { SERIALIZER } from 'objio';
-import { Connect } from './connect';
+import { Connection } from './connection';
+import { TableInfo } from '../base/database';
 
 export function getCompSqlCondition(cond: CompoundCond, col?: string): string {
   let sql = '';
@@ -178,10 +179,10 @@ function insert(args: PushRowArgs & { table: string; db: mysql.Connection }): Pr
 }
 
 let subtableCounter: number = 0;
-export class Database extends Base {
+export class Database extends DatabaseBase {
   private db: mysql.Connection;
   private subtableMap: {[key: string]: { subtable: string, columns: Array<ColumnAttr> }} = {};
-  protected connect: Connect;
+  protected connection: Connection;
 
   constructor() {
     super();
@@ -268,10 +269,10 @@ export class Database extends Base {
               return { name: table[Object.keys(table)[0]] };
             });
 
-            if (JSON.stringify(arr) == JSON.stringify(this.tableInfo))
+            if (JSON.stringify(arr) == JSON.stringify(this.tables))
               return false;
 
-            this.tableInfo = arr;
+            this.tables = arr;
             this.holder.save();
 
             return true;
@@ -289,35 +290,11 @@ export class Database extends Base {
   }
 
   openDB(useDB: boolean = true): Promise<mysql.Connection> {
-    if (this.db)
-      return Promise.resolve(this.db);
+    this.db = this.connection.getRef();
+    if (useDB)
+      return exec(this.db, `use ${this.database}`).then(() => this.db);
 
-    return new Promise((resolve, reject) => {
-      const cfg: mysql.ConnectionConfig = {
-        ...this.connect.getConfig(),
-        password: this.connect.getPassword()
-      };
-
-      if (useDB)
-        cfg.database = this.database;
-
-      this.db = mysql.createConnection(cfg);
-      this.db.connect(err => {
-        if (err)
-          reject(err);
-        else
-          resolve(this.db);
-      });
-
-      this.db.on('end', () => {
-        this.db = null;
-      });
-
-      this.db.on('error', err => {
-        console.log(err);
-        this.db = null;
-      });
-    });
+    return Promise.resolve(this.db);
   }
 
   createTable(args: TableColsArgs): Promise<void> {
@@ -449,6 +426,6 @@ export class Database extends Base {
   }
 
   static SERIALIZE: SERIALIZER = () => ({
-    ...Base.SERIALIZE()
+    ...DatabaseBase.SERIALIZE()
   })
 }

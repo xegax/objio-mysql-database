@@ -1,8 +1,9 @@
 import * as React from 'react';
-import { ConfigBase, OBJIOItemClassViewable } from 'objio-object/view/config';
-import { Database, DatabaseArgs } from '../client/database';
-import { Connect } from '../client/connect';
-import { OBJIOItem } from 'objio';
+import { ConfigBase } from 'objio-object/view/config';
+import { Database, RemoteDatabaseArgs } from '../client/database';
+import { Connection } from '../client/connection';
+import { PropItem, DropDownPropItem, PropsGroup, TextPropItem } from 'ts-react-ui/prop-sheet';
+import { connect } from 'net';
 
 export { Database };
 
@@ -24,8 +25,8 @@ export class DatabaseView extends React.Component<Props> {
   }
 
   getServer(): string {
-    const cfg = this.props.model.getConnect().getConfig();
-    return `${cfg.user}@${cfg.host}:${cfg.port}`;
+    const conn = this.props.model.getConnection();
+    return `${conn.getUser()}@${conn.getHost()}:${conn.getPort()}`;
   }
 
   getDatabase(): string {
@@ -33,7 +34,7 @@ export class DatabaseView extends React.Component<Props> {
   }
 
   renderTable() {
-    const table = this.props.model.getTable();
+    /*const table = this.props.model.getTable();
     if (!table.getTableName())
       return;
 
@@ -41,7 +42,9 @@ export class DatabaseView extends React.Component<Props> {
     const views = objClass.getViewDesc();
     return (
       views.views[0].view({ model: table })
-    );
+    );*/
+
+    return null;
   }
 
   render() {
@@ -50,18 +53,19 @@ export class DatabaseView extends React.Component<Props> {
         <div style={{flexGrow: 0}}>
           <div>server: {this.getServer()}</div>
           <div>database: {this.getDatabase()}</div>
-          <div>tables ({this.props.model.getTableInfo().length})</div>
+          <div>tables ({this.props.model.getTables().length})</div>
           <div>
-            {this.props.model.getTableInfo().map((table, i) => {
+            {this.props.model.getTables().map((table, i) => {
               return (
-              <div key={i} onClick={() => {
-                this.props.model.getTable().setTableName(table.name)
-                .then(() => {
-                  this.props.model.holder.notify();
-                });
-              }}>
-                {table.name}
-              </div>);
+                <div key={i} onClick={() => {
+                  /*this.props.model.getTable().setTableName(table.name)
+                  .then(() => {
+                    this.props.model.holder.notify();
+                  });*/
+                }}>
+                  {table.name}
+                </div>
+              );
             })}
           </div>
         </div>
@@ -73,18 +77,12 @@ export class DatabaseView extends React.Component<Props> {
   }
 }
 
-export interface State {
-  connId: string;
-}
-
-export class DatabaseConfig extends ConfigBase<DatabaseArgs, State> {
-  state: Readonly<Partial<State>> = {};
-
-  getAvailableConnects(): Array<Connect> {
+export class DatabaseConfig extends ConfigBase<RemoteDatabaseArgs> {
+  getAvailableConnects(): Array<Connection> {
     return (
       this.props.objects()
-      .filter(obj => obj instanceof Connect)
-      .map(obj => obj as Connect)
+      .filter(obj => obj instanceof Connection)
+      .map(obj => obj as Connection)
     );
   }
 
@@ -93,50 +91,34 @@ export class DatabaseConfig extends ConfigBase<DatabaseArgs, State> {
     if (!lst.length)
       return;
 
-    this.config.connect = lst[0];
+    this.config.connection = lst[0];
     this.config.database = 'test';
-    this.setState({ connId: lst[0].holder.getID() });
-  }
-
-  onChange = (evt: React.ChangeEvent<HTMLSelectElement>) => {
-    this.config.connect = this.getAvailableConnects().find(obj => obj.holder.getID() == evt.currentTarget.value);
-    if (this.config.connect)
-      this.setState({ connId: this.config.connect.holder.getID() });
   }
 
   render() {
     return (
-      <div>
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                connection
-              </td>
-              <td>
-                <select value={this.state.connId} onChange={this.onChange}>
-                  {this.getAvailableConnects().map(conn => {
-                    return <option value={conn.holder.getID()}>{conn.toString()}</option>;
-                  })}
-                </select>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                database
-              </td>
-              <td>
-                <input
-                  defaultValue={this.config.database}
-                  onChange={e => {
-                    this.config.database = e.currentTarget.value;
-                  }}
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <PropsGroup label='database'>
+        <DropDownPropItem
+          value={this.config.connection && { value: this.config.connection.holder.getID() }}
+          values={this.getAvailableConnects().map(conn => {
+            return {
+              value: conn.holder.getID(),
+              render: conn.getName(),
+              title: '?',
+              conn
+            };
+          })}
+          onSelect={conn => {
+            this.config.connection = conn['conn'];
+          }}
+        />
+        <TextPropItem
+          value={this.config.database}
+          onEnter={database => {
+            this.config.database = database;
+          }}
+        />
+      </PropsGroup>
     );
   }
 }

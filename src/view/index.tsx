@@ -1,7 +1,8 @@
 import * as React from 'react';
-import { registerViews, ViewDesc, OBJIOItemClassViewable } from 'objio-object/view/config';
+import { registerViews, OBJIOItemClassViewable } from 'objio-object/view/config';
 import { Database, Props, DatabaseView, DatabaseConfig } from './database-view';
-import { Connect, Props as ConnProps, ConnectView, ConnectConfig } from './connect-view';
+import { Props as ConnProps, ConnectionView, ConnectionConfig } from 'objio-object/view/connection-view';
+import { Connection } from '../client/connection';
 
 export function getViews(): Array<OBJIOItemClassViewable> {
   registerViews({
@@ -11,22 +12,22 @@ export function getViews(): Array<OBJIOItemClassViewable> {
     }],
     config: props => <DatabaseConfig {...props}/>,
     flags: ['create-wizard'],
-    sources: [ [ Connect ] ],
+    sources: [ [ Connection ] ],
     desc: 'Mysql database'
   });
 
   registerViews({
-    classObj: Connect,
+    classObj: Connection,
     views: [{
-      view: (props: ConnProps) => <ConnectView {...props}/>
+      view: (props: ConnProps) => <ConnectionView {...props}/>
     }],
-    config: props => <ConnectConfig {...props}/>,
+    config: props => <ConnectionConfig {...props}/>,
     flags: ['create-wizard'],
     desc: 'Mysql connection'
   });
 
   return [
     Database,
-    Connect
+    Connection
   ];
 }
