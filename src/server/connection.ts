@@ -24,6 +24,7 @@ export class Connection extends ConnectionBase {
     this.holder.addEventHandler({
       onLoad: () => {
         this.connected = false;
+        this.holder.save();
         return this.tryToReconnect();
       },
       onCreate: () => {
@@ -76,6 +77,14 @@ export class Connection extends ConnectionBase {
 
           resolve();
           this.setConnected(true);
+        });
+
+        this.mysqlConn.on('error', err => {
+          console.log('MySQLConnection error occured', err);
+        });
+        this.mysqlConn.on('end', err => {
+          console.log('connection is end', err);
+          this.setConnected(false);
         });
       });
     });

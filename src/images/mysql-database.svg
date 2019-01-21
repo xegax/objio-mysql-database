@@ -1,0 +1,13 @@
+<svg width="24" height="24" version="1.1" viewBox="0 0 6.35 6.35" xmlns="http://www.w3.org/2000/svg">
+ <defs>
+  <style type="text/css"/>
+ </defs>
+ <g transform="translate(0 -290.65)">
+  <g>
+   <rect x=".13283" y="290.79" width="6.0816" height="6.0789" ry=".61421" fill="#87cdde" stroke="#464646" stroke-linecap="round" stroke-width=".26408"/>
+   <path d="m0.74694 294.7 4.8532-1e-4c0.34027-1e-5 0.61421 0 0.61421 0v1.5944c0 0.34027-0.27394 0.61421-0.61421 0.61421h-4.8532c-0.34027 0-0.61421-0.27394-0.61421-0.61421v-1.5944s0.27394 1.1e-4 0.61421 1e-4z" fill="#eef4d7" stroke="#464646" stroke-linecap="round" stroke-width=".26408"/>
+   <text x="3.1714091" y="296.28857" fill="#000000" font-family="sans-serif" font-size="12.23px" letter-spacing="0px" stroke-width=".30574" text-align="center" text-anchor="middle" word-spacing="0px" style="line-height:1.25" xml:space="preserve"><tspan x="3.2825341" y="296.28857" font-family="Tahoma" font-size="1.4111px" font-weight="bold" letter-spacing=".13229px" stroke-width=".30574" text-align="center" text-anchor="middle">MySQL</tspan></text>
+  </g>
+  <path class="" d="m4.8149 291.5v0.30673c0 0.2703-0.6732 0.49076-1.503 0.49076-0.82976 0-1.503-0.22046-1.503-0.49076v-0.30673c0-0.2703 0.6732-0.49076 1.503-0.49076 0.82976 0 1.503 0.22046 1.503 0.49076zm0 0.69014v0.69013c0 0.2703-0.6732 0.49077-1.503 0.49077-0.82976 0-1.503-0.22047-1.503-0.49077v-0.69013c0.3229 0.22237 0.91391 0.3259 1.503 0.3259 0.58905 0 1.1801-0.10353 1.503-0.3259zm0 1.0735v0.69014c0 0.2703-0.6732 0.49076-1.503 0.49076-0.82976 0-1.503-0.22046-1.503-0.49076v-0.69014c0.3229 0.22238 0.91391 0.3259 1.503 0.3259 0.58905 0 1.1801-0.10352 1.503-0.3259z" fill="#4d4d4d" stroke-width=".0067096"/>
+ </g>
+</svg>
