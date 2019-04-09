@@ -1,4 +1,3 @@
-import * as mysql from 'mysql';
 import { DatabaseBase } from '../base/database';
 import {
   TableNameArgs,
@@ -10,173 +9,23 @@ import {
   LoadCellsArgs,
   PushRowArgs,
   Cells,
-  Condition,
-  CompoundCond,
-  ValueCond,
   SubtableAttrs,
   CreateSubtableResult
 } from 'objio-object/base/database/table';
 import { SERIALIZER } from 'objio';
 import { Connection } from './connection';
 import { TableInfo } from '../base/database';
-
-export function getCompSqlCondition(cond: CompoundCond, col?: string): string {
-  let sql = '';
-  if (cond.values.length == 1) {
-    sql = getSqlCondition(cond.values[0]);
-  } else {
-    sql = cond.values.map(cond => {
-      return `( ${getSqlCondition(cond)} )`;
-    }).join(` ${cond.op} `);
-  }
-
-  if (cond.table && col)
-    sql = `select ${col} from ${cond.table} where ${sql}`;
-
-  return sql;
-}
-
-function getSqlCondition(cond: Condition): string {
-  const comp = cond as CompoundCond;
-
-  if (comp.op && comp.values)
-    return getCompSqlCondition(comp);
-
-  const condVal = cond as ValueCond;
-
-  if (Array.isArray(condVal.value) && condVal.value.length == 2) {
-    return `${condVal.column} >= ${condVal.value[0]} and ${condVal.column} <= ${condVal.value[1]}`;
-  } else if (typeof condVal.value == 'object') {
-    const val = condVal.value as CompoundCond;
-    return `${condVal.column} in (select ${condVal.column} from ${val.table} where ${getCompSqlCondition(val)})`;
-  }
-
-  let value = condVal.value;
-  let op: string;
-  if (condVal.like) {
-    op = condVal.inverse ? ' not like ' : ' like ';
-    if (value.indexOf('%') == -1 && value.indexOf('_') == -1)
-      value = '%' + value + '%';
-  } else {
-    op = condVal.inverse ? '!=' : '=';
-  }
-  return `${condVal.column}${op}"${value}"`;
-}
-
-function exec(db: mysql.Connection, sql: string): Promise<any> {
-  return new Promise((resolve, reject) => {
-    db.query(sql, err => {
-      if (!err) {
-        resolve();
-      } else {
-        console.log('error at', sql);
-        reject(err);
-      }
-    });
-  });
-}
-
-function run(db: mysql.Connection, sql: string, params: Array<any>): Promise<any> {
-  return new Promise((resolve, reject) => {
-    db.query(sql, params, err => {
-      if (!err) {
-        resolve();
-      } else {
-        console.log(err);
-        // console.log('error at', sql);
-        reject(err);
-      }
-    });
-  });
-}
-
-function all<T = Object>(db: mysql.Connection, sql: string, params?: Array<any>): Promise<Array<T>> {
-  return new Promise((resolve, reject) => {
-    db.query(sql, params || [], (err, rows: Array<T>) => {
-      if (err)
-        return reject(err);
-      resolve(rows);
-    });
-  });
-}
-
-function get<T = Object>(db: mysql.Connection, sql: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    db.query(sql, (err, rows: T) => {
-      if (err)
-        return reject(err);
-      resolve(rows[0]);
-    });
-  });
-}
-
-function createTable(db: mysql.Connection, table: string, columns: Columns): Promise<any> {
-  const sql = columns.map(column => {
-    let value = `${column.name} ${column.type}`;
-    if (column.autoInc)
-      value += ' AUTO_INCREMENT';
-
-    if (column.unique)
-      value += ' UNIQUE';
-
-    if (column.notNull)
-      value += ' NOT NULL';
-
-    if (column.primary)
-      value += ' PRIMARY KEY';
-
-    return value;
-  }).join(', ');
-
-  return (
-    exec(db, `create table ${table} (${sql})`)
-    .then(() => {
-      return Promise.all(columns.filter(col => col.index).map(col => {
-        let colName = col.name;
-        if (col.type == 'TEXT')
-          colName = `${colName}(10)`;
-        return exec(db, `create index idx_${col.name} on ${table}(${colName})`);
-      }));
-    })
-  );
-}
-
-function deleteTable(db: mysql.Connection, table: string): Promise<void> {
-  return exec(db, `drop table if exists ${table}`);
-}
-
-function loadTableInfo(db: mysql.Connection, table: string): Promise<Columns> {
-  return all<ColumnAttr>(db, `describe ${table}`).then(res => {
-    return res.map(row => ({name: row['Field'], type: row['Type']}));
-  });
-}
-
-function insert(args: PushRowArgs & { table: string; db: mysql.Connection }): Promise<any> {
-  const cols: {[name: string]: number} = {};
-  const valuesArr = Array<string>();
-  const holderArr = Array<string>();
-  const values = args.values;
-  if (!args.columns) {
-    for (let n = 0; n < values.length; n++) {
-      const keys = Object.keys(values[n]);
-      for (let c = 0; c < keys.length; c++) {
-        cols[ keys[c] ] = ( cols[ keys[c] ] || 0 ) + 1;
-      }
-    }
-  }
-
-  const colsArr = args.columns || Object.keys(cols);
-  for (let n = 0; n < values.length; n++) {
-    for (let c = 0; c < colsArr.length; c++) {
-      valuesArr.push(values[n][ colsArr[c] ] as string || null);
-    }
-    holderArr.push( '(' + colsArr.map(() => '?').join(',') + ')' );
-  }
-
-  const allCols = Object.keys(cols).map(name => name).join(',');
-  const sql = `insert into ${args.table}(${allCols}) values ${holderArr.join(',')};`;
-  return run(args.db, sql, valuesArr);
-}
+import {
+  exec,
+  all,
+  get,
+  insert,
+  createTable,
+  loadTableInfo,
+  getSqlCondition,
+  deleteTable
+} from './mysql';
+import * as mysql from 'mysql';
 
 let subtableCounter: number = 0;
 export class Database extends DatabaseBase {
@@ -285,7 +134,7 @@ export class Database extends DatabaseBase {
   loadTableInfo(args: TableNameArgs): Promise<Array<ColumnAttr>> {
     return (
       this.openDB()
-      .then(() => loadTableInfo(this.db, args.table))
+      .then(() => loadTableInfo(this.db, this.database, args.table))
     );
   }
 
@@ -300,7 +149,7 @@ export class Database extends DatabaseBase {
   createTable(args: TableColsArgs): Promise<void> {
     return (
       this.openDB()
-      .then(() => createTable(this.db, args.table, args.columns))
+      .then(() => createTable(this.db, this.database, args.table, args.columns))
       .then(() => this.updateTables() as Promise<any>)
     );
   }
@@ -308,7 +157,7 @@ export class Database extends DatabaseBase {
   deleteTable(args: TableNameArgs): Promise<void> {
     return (
       this.openDB()
-      .then(() => deleteTable(this.db, args.table))
+      .then(() => deleteTable(this.db, this.database, args.table))
       .then(() => this.updateTables() as Promise<any>)
     );
   }
@@ -332,7 +181,7 @@ export class Database extends DatabaseBase {
   pushCells(args: PushRowArgs & { table: string }): Promise<number> {
     return (
       this.openDB()
-      .then(() => insert({...args, db: this.db}))
+      .then(() => insert({...args, conn: this.db, db: this.database}))
     );
   }
 

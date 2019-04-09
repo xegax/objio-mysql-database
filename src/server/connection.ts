@@ -26,10 +26,6 @@ export class Connection extends ConnectionBase {
         this.connected = false;
         this.holder.save();
         return this.tryToReconnect();
-      },
-      onCreate: () => {
-        this.password = this.initialPwd;
-        return this.tryToReconnect();
       }
     });
   }
