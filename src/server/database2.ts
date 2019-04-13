@@ -25,7 +25,6 @@ import { Connection } from './connection';
 import { StrMap, IDArgs } from 'objio-object/common/interfaces';
 
 export class Database2 extends DatabaseBase {
-  protected conn: Connection;
   protected database: string;
   private tempTables: { [key: string]: { tableName: string, columns: Array<string> } } = {};
   private tmpTableCounter = 0;
@@ -85,6 +84,10 @@ export class Database2 extends DatabaseBase {
     return [Connection];
   }
 
+  private getConnRef() {
+    return (this.conn as any as Connection).getRef();
+  }
+
   setConnection(args: IDArgs): Promise<void> {
     if (this.conn && this.conn.getID() == args.id)
       return Promise.resolve();
@@ -95,7 +98,7 @@ export class Database2 extends DatabaseBase {
           if (!(conn instanceof Connection))
             return Promise.reject('Connection object is not valid');
 
-          this.conn = conn;
+          this.conn = conn as any;
           this.holder.save();
         })
     );
@@ -114,7 +117,7 @@ export class Database2 extends DatabaseBase {
     if (!this.conn)
       return Promise.reject('Connection is not selected');
 
-    return loadDatabaseList(this.conn.getRef());
+    return loadDatabaseList(this.getConnRef());
   }
 
   loadTableList(): Promise<Array<TableInfo>> {
@@ -122,7 +125,7 @@ export class Database2 extends DatabaseBase {
       return Promise.reject('Database is not selected');
 
     return (
-      loadTableList(this.conn.getRef(), this.database)
+      loadTableList(this.getConnRef(), this.database)
         .then(arr => {
           return Promise.all(
             arr.map(tableName => this.loadTableInfo({ tableName }))
@@ -132,7 +135,7 @@ export class Database2 extends DatabaseBase {
   }
 
   loadTableInfo(args: TableArgs): Promise<TableInfo> {
-    const conn = this.conn.getRef();
+    const conn = this.getConnRef();
     return (
       Promise.all([
         loadTableInfo(conn, this.database, args.tableName),
@@ -151,7 +154,7 @@ export class Database2 extends DatabaseBase {
 
   loadTableRowsNum(args: TableArgs): Promise<number> {
     return (
-      loadRowsNum(this.conn.getRef(), this.database, args.tableName)
+      loadRowsNum(this.getConnRef(), this.database, args.tableName)
     );
   }
 
@@ -160,7 +163,7 @@ export class Database2 extends DatabaseBase {
     const where = '';
     const sql = `select * from ${this.database}.${tableName} ${where} limit ? offset ?`;
     return (
-      all<Object>(this.conn.getRef(), sql, [rowsNum, fromRow])
+      all<Object>(this.getConnRef(), sql, [rowsNum, fromRow])
         .then((rows: Array<StrMap>) => {
           return {
             rows,
@@ -196,10 +199,11 @@ export class Database2 extends DatabaseBase {
     const orderBy = '';
     const cols = args.columns ? args.columns.join(', ') : '*';
     const tmpTableName = `tmp_table_${this.tmpTableCounter}`;
-    const sql = `create temporary table ${tmpTableName} as select ${cols} from ${args.tableName} ${where} ${groupBy} ${orderBy}`.trim();
-    const conn = this.conn.getRef();
+    const sql = `use ${this.database}; create temporary table ${tmpTableName} as select ${cols} from ${args.tableName} ${where} ${groupBy} ${orderBy}`.trim();
+    const conn = this.getConnRef();
     return (
-      exec(conn, `use ${this.database}`)
+      // exec(conn, `use ${this.database}`)
+      Promise.resolve()
       .then(() => {
         return (
           exec(conn, sql)
@@ -219,7 +223,7 @@ export class Database2 extends DatabaseBase {
   createTable(args: CreateTableArgs): Promise<TableInfo> {
     return (
       createTable(
-        this.conn.getRef(),
+        this.getConnRef(),
         this.database,
         args.tableName,
         args.columns.map(col => {
@@ -235,14 +239,14 @@ export class Database2 extends DatabaseBase {
 
   deleteTable(args: DeleteTableArgs): Promise<void> {
     return (
-      deleteTable(this.conn.getRef(), this.database, args.tableName)
+      deleteTable(this.getConnRef(), this.database, args.tableName)
     );
   }
 
   pushData(args: PushDataArgs): Promise<PushDataResult> {
     return (
       insert({
-        conn: this.conn.getRef(),
+        conn: this.getConnRef(),
         db: this.database,
         table: args.tableName,
         values: args.rows

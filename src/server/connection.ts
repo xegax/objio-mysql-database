@@ -48,7 +48,9 @@ export class Connection extends ConnectionBase {
       host: this.host,
       port: this.port,
       user: this.user,
-      password: this.password
+      password: this.password,
+      insecureAuth: true,
+      multipleStatements: true
     };
 
     let p = Promise.resolve();
@@ -100,6 +102,7 @@ export class Connection extends ConnectionBase {
 
   setPassword(args: { password: string }): Promise<boolean> {
     this.password = args.password;
+    console.log(this.password, args);
     this.holder.save();
 
     return Promise.resolve(true);
@@ -112,7 +115,7 @@ export class Connection extends ConnectionBase {
     return this.tryToReconnect();
   }
 
-  getRef() {
+  getRef(): mysql.Connection {
     return this.mysqlConn;
   }
 

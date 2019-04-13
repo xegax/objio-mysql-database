@@ -20,7 +20,7 @@ export function getObjectsToCreate(): Array<ObjectToCreate> {
     }, {
       name: 'mysql connection',
       desc: 'mysql connection',
-      create: () => new Connection()
+      create: () => new Connection() as any
     }
   ];
 }

@@ -2,6 +2,11 @@
 # yarn lockfile v1
 
 
+"@types/bluebird@^3.5.25":
+  version "3.5.26"
+  resolved "https://registry.yarnpkg.com/@types/bluebird/-/bluebird-3.5.26.tgz#a38c438ae84fa02431d6892edf86e46edcbca291"
+  integrity sha512-aj2mrBLn5ky0GmAg6IPXrQjnN0iB/ulozuJ+oZdrHRAzRbXjGmu4UXsNCjFvPbSaaPZmniocdOzsM392qLOlmQ==
+
 "@types/mysql@^2.15.5":
   version "2.15.5"
   resolved "https://registry.yarnpkg.com/@types/mysql/-/mysql-2.15.5.tgz#6d75afb5cc018c9d66b2f37a046924e397f85430"
@@ -114,18 +119,28 @@ object-assign@^4.1.1:
   version "4.1.1"
   resolved "https://registry.yarnpkg.com/object-assign/-/object-assign-4.1.1.tgz#2109adc7965887cfc05cbbd442cac8bfbb360863"
 
-objio-object@^0.0.37:
-  version "0.0.37"
-  resolved "https://registry.yarnpkg.com/objio-object/-/objio-object-0.0.37.tgz#397739ded542b0b318c444dcbb69389475c900dd"
+objio-object@^0.0.38:
+  version "0.0.38"
+  resolved "https://registry.yarnpkg.com/objio-object/-/objio-object-0.0.38.tgz#013217a6203e312e16eebb820709d0023b5affa3"
+  integrity sha512-98UFobZeK7JtMtTTer9z1e/9QaXL2lWXJ+gKNaMsGDJHfEAUVBP/echxIRB+lZpAEw65GOhqX1NtSmNTA/wwCQ==
   dependencies:
-    objio "^0.0.37"
+    objio "^0.0.38"
     react "^16.4.1"
     react-dom "^16.4.1"
-    ts-react-ui "^0.1.37"
+    ts-react-ui "^0.1.38"
 
 objio@^0.0.37:
   version "0.0.37"
   resolved "https://registry.yarnpkg.com/objio/-/objio-0.0.37.tgz#f339f9fce5c70ab33c2f514a6dda2f6e7b667b72"
+  dependencies:
+    axios "^0.18.0"
+    bluebird "^3.5.3"
+    lodash "^4.17.4"
+
+objio@^0.0.38:
+  version "0.0.38"
+  resolved "https://registry.yarnpkg.com/objio/-/objio-0.0.38.tgz#567cf2d18c7d4e4ae98fd29a006c17475bdc7997"
+  integrity sha512-ziLIRB4zB6P5XBABSivsTmXFECZKpIbRyz7N5aOt9NQiHkA1L/J9Btp+DjyA6KYGqEnWxb56n0AhhMd4Sps/lg==
   dependencies:
     axios "^0.18.0"
     bluebird "^3.5.3"
@@ -192,10 +207,12 @@ string_decoder@~1.1.1:
   dependencies:
     safe-buffer "~5.1.0"
 
-ts-react-ui@^0.1.37:
-  version "0.1.37"
-  resolved "https://registry.yarnpkg.com/ts-react-ui/-/ts-react-ui-0.1.37.tgz#42d7d98989979d23788f33bffe110e9d75d71cf3"
+ts-react-ui@^0.1.38:
+  version "0.1.38"
+  resolved "https://registry.yarnpkg.com/ts-react-ui/-/ts-react-ui-0.1.38.tgz#06f2d3555f79e2a09940cd897efc2e536bbc1e70"
+  integrity sha512-v7mNESuXZZgGzDP4O9DV2rNvmuoNTKee+zGQyKqmNuhQxXR+WjsaHUjbkdrZM7l3aCJtrhfOAyJCLqF8VYK6/w==
   dependencies:
+    "@types/bluebird" "^3.5.25"
     font-awesome "^4.7.0"
     objio "^0.0.37"
     react "^16.4.1"
