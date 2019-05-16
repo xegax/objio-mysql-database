@@ -130,7 +130,7 @@ export function createTable(conn: mysql.Connection, db: string, table: string, c
         let colName = col.name;
         if (col.type == 'TEXT')
           colName = `${colName}(10)`;
-        return exec(conn, `create index idx_${col.name} on ${table}(${colName})`);
+        return exec(conn, `create index idx_${col.name} on ${db}.${table}(${colName})`);
       }));
     })
   );
@@ -138,6 +138,15 @@ export function createTable(conn: mysql.Connection, db: string, table: string, c
 
 export function deleteTable(conn: mysql.Connection, db: string, table: string): Promise<void> {
   return exec(conn, `drop table if exists ${db}.${table}`);
+}
+
+export function deleteData(args: {conn: mysql.Connection, db: string, table: string, where?: string}): Promise<void> {
+  let where = args.where || '';
+  if (where)
+    where = `where ${where}`;
+  const sql = `delete from ${args.db}.${args.table} ${where}`;
+
+  return exec(args.conn, sql);
 }
 
 export function loadTableList(conn: mysql.Connection, db: string) {

@@ -1,44 +1,41 @@
 import {
-  TmpTableArgs,
-  TableInfo,
-  TableArgs,
-  TableData,
-  TableDataArgs,
   CreateTableArgs,
   DeleteTableArgs,
   PushDataArgs,
-  PushDataResult
-} from 'objio-object/base/database-holder';
+  PushDataResult,
+  DeleteDataArgs,
+  TableDesc,
+  LoadTableGuidArgs,
+  LoadTableGuidResult,
+  TableGuid,
+  LoadTableDataArgs,
+  LoadTableDataResult,
+  LoadAggrDataArgs,
+  LoadAggrDataResult,
+  UpdateDataArgs
+} from 'objio-object/base/database-holder-decl';
 import { DatabaseBase } from '../base/database2';
 import { IDArgs } from 'objio-object/common/interfaces';
 import { Connection } from './connection';
 
 export class Database2 extends DatabaseBase {
-  getConnClasses() {
-    return [ Connection ];
-  }
-
-  loadTableList(): Promise<Array<TableInfo>> {
+  loadTableList(): Promise<Array<TableDesc>> {
     return this.holder.invokeMethod({ method: 'loadTableList', args: {} });
   }
 
-  loadTableInfo(args: TableArgs): Promise<TableInfo> {
-    return this.holder.invokeMethod({ method: 'loadTableInfo', args });
+  loadTableGuid(args: LoadTableGuidArgs): Promise<LoadTableGuidResult> {
+    return this.holder.invokeMethod({ method: 'loadTableGuid', args });
   }
 
-  loadTableRowsNum(args: TableArgs): Promise<number> {
+  loadTableRowsNum(args: TableGuid): Promise<number> {
     return this.holder.invokeMethod({ method: 'loadTableRowsNum', args });
   }
 
-  loadTableData(args: TableDataArgs): Promise<TableData> {
+  loadTableData(args: LoadTableDataArgs): Promise<LoadTableDataResult> {
     return this.holder.invokeMethod({ method: 'loadTableData', args });
   }
 
-  createTempTable(args: TmpTableArgs): Promise<TableInfo> {
-    return this.holder.invokeMethod({ method: 'createTempTable', args });
-  }
-
-  createTable(args: CreateTableArgs): Promise<TableInfo> {
+  createTable(args: CreateTableArgs): Promise<TableDesc> {
     return this.holder.invokeMethod({ method: 'createTable', args });
   }
 
@@ -48,6 +45,22 @@ export class Database2 extends DatabaseBase {
 
   pushData(args: PushDataArgs): Promise<PushDataResult> {
     return this.holder.invokeMethod({ method: 'pushData', args });
+  }
+
+  deleteData(args: DeleteDataArgs): Promise<void> {
+    return this.holder.invokeMethod({ method: 'deleteData', args });
+  }
+
+  updateData(args: UpdateDataArgs): Promise<void> {
+    return this.holder.invokeMethod({ method: 'updateData', args });
+  }
+
+  loadAggrData(args: LoadAggrDataArgs): Promise<LoadAggrDataResult> {
+    return this.holder.invokeMethod({ method: 'loadAggrData', args });
+  }
+
+  getConnClasses() {
+    return [ Connection ];
   }
 
   setConnection(args: IDArgs): Promise<void> {

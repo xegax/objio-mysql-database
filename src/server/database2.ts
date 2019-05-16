@@ -1,14 +1,24 @@
 import {
-  TableInfo,
-  TableArgs,
-  TmpTableArgs,
-  TableData,
   TableDataArgs,
   CreateTableArgs,
   DeleteTableArgs,
   PushDataArgs,
-  PushDataResult
-} from 'objio-object/base/database-holder';
+  PushDataResult,
+  LoadTableDataArgs,
+  LoadTableGuidArgs,
+  TableGuid,
+  DeleteDataArgs,
+  LoadAggrDataArgs,
+  TableDesc,
+  TableDescShort,
+  LoadTableGuidResult,
+  CompoundCond,
+  ValueCond,
+  UpdateDataArgs,
+  AggregationFunc,
+  LoadAggrDataResult,
+  LoadTableDataResult
+} from 'objio-object/base/database-holder-decl';
 import { DatabaseBase } from '../base/database2';
 import {
   loadTableList,
@@ -19,15 +29,94 @@ import {
   exec,
   createTable,
   deleteTable,
-  loadDatabaseList
+  loadDatabaseList,
+  deleteData,
+  get
 } from './mysql';
 import { Connection } from './connection';
 import { StrMap, IDArgs } from 'objio-object/common/interfaces';
 
+function sqlColumn(column: string) {
+  return column;
+}
+
+function sqlTable(table: string) {
+  return table;
+}
+
+function aggConv(agg: AggregationFunc, column: string) {
+  return `${agg}(${column})`;
+}
+
+export function getCompoundSQLCond(cond: CompoundCond, col?: string): string {
+  let sql = '';
+  if (cond.values.length == 1) {
+    sql = getSQLCond(cond.values[0]);
+  } else {
+    sql = cond.values.map(cond => {
+      return `( ${getSQLCond(cond)} )`;
+    }).join(` ${cond.op} `);
+  }
+
+  if (cond.table && col)
+    sql = `select ${col} from ${cond.table} where ${sql}`;
+
+  return sql;
+}
+
+export function getSQLCond(cond: ValueCond | CompoundCond): string {
+  const comp = cond as CompoundCond;
+
+  if (comp.op && comp.values)
+    return getCompoundSQLCond(comp);
+
+  const valueCond = cond as ValueCond;
+
+  if (Array.isArray(valueCond.value) && valueCond.value.length == 2) {
+    return `${valueCond.column} >= ${valueCond.value[0]} and ${valueCond.column} <= ${valueCond.value[1]}`;
+  } else if (typeof valueCond.value == 'object') {
+    const val = valueCond.value as CompoundCond;
+    return `${valueCond.column} in (select ${valueCond.column} from ${val.table} where ${getCompoundSQLCond(val)})`;
+  }
+
+  let value = valueCond.value;
+  let op: string;
+  if (valueCond.like) {
+    op = valueCond.inverse ? ' not like ' : ' like ';
+    if (value.indexOf('%') == -1 && value.indexOf('_') == -1)
+      value = '%' + value + '%';
+  } else if (value == '' || value == null) {
+    op = valueCond.inverse ? 'is not' : 'is';
+    return `${valueCond.column} ${op} NULL`;
+  } else {
+    op = valueCond.inverse ? '!=' : '=';
+  }
+
+  return `${valueCond.column}${op}"${value}"`;
+}
+
+export interface GuidMapData {
+  args: LoadTableGuidArgs;
+  desc: TableDesc;
+  tmpTable: string;
+  invalid: boolean;
+  createTask: Promise<TableDescShort>;
+}
+
+function getArgsKey(args: LoadTableGuidArgs): string {
+  return [
+    args.tableName,
+    args.cond
+  ].map(k => JSON.stringify(k)).join('-');
+}
+
 export class Database2 extends DatabaseBase {
   protected database: string;
-  private tempTables: { [key: string]: { tableName: string, columns: Array<string> } } = {};
+  private guidMap: {[guid: string]: GuidMapData} = {};
+  private argsToGuid: {[argsKey: string]: string} = {};
+
   private tmpTableCounter = 0;
+  private tableList: Array<TableDesc>;
 
   constructor() {
     super();
@@ -37,21 +126,17 @@ export class Database2 extends DatabaseBase {
         method: () => this.loadTableList(),
         rights: 'read'
       },
-      loadTableInfo: {
-        method: (args: TableArgs) => this.loadTableInfo(args),
+      loadTableGuid: {
+        method: (args: LoadTableGuidArgs) => this.loadTableGuid(args),
         rights: 'read'
       },
       loadTableRowsNum: {
-        method: (args: TableArgs) => this.loadTableRowsNum(args),
+        method: (args: TableGuid) => this.loadTableRowsNum(args),
         rights: 'read'
       },
       loadTableData: {
-        method: (args: TableDataArgs) => this.loadTableData(args),
+        method: (args: LoadTableDataArgs) => this.loadTableData(args),
         rights: 'read'
-      },
-      createTempTable: {
-        method: (args: TableArgs) => this.createTempTable(args),
-        rights: 'create'
       },
       createTable: {
         method: (args: CreateTableArgs) => this.createTable(args),
@@ -60,6 +145,18 @@ export class Database2 extends DatabaseBase {
       deleteTable: {
         method: (args: DeleteTableArgs) => this.deleteTable(args),
         rights: 'write'
+      },
+      pushData: {
+        method: (args: PushDataArgs) => this.pushData(args),
+        rights: 'write'
+      },
+      deleteData: {
+        method: (args: DeleteDataArgs) => this.deleteData(args),
+        rights: 'write'
+      },
+      loadAggrData: {
+        method: (args: LoadAggrDataArgs) => this.loadAggrData(args),
+        rights: 'read'
       },
       setConnection: {
         method: (args: IDArgs) => this.setConnection(args),
@@ -120,107 +217,149 @@ export class Database2 extends DatabaseBase {
     return loadDatabaseList(this.getConnRef());
   }
 
-  loadTableList(): Promise<Array<TableInfo>> {
-    if (!this.database)
-      return Promise.reject('Database is not selected');
+  loadTableList(): Promise<Array<TableDesc>> {
+    if (this.tableList)
+      return Promise.resolve(this.tableList);
 
     return (
       loadTableList(this.getConnRef(), this.database)
-        .then(arr => {
-          return Promise.all(
-            arr.map(tableName => this.loadTableInfo({ tableName }))
-          );
-        })
-    );
-  }
-
-  loadTableInfo(args: TableArgs): Promise<TableInfo> {
-    const conn = this.getConnRef();
-    return (
-      Promise.all([
-        loadTableInfo(conn, this.database, args.tableName),
-        loadRowsNum(conn, this.database, args.tableName)
-      ])
-        .then(arr => {
-          const res: TableInfo = {
-            tableName: args.tableName,
-            columns: arr[0].map(c => ({ colName: c.name, colType: c.type })),
-            rowsNum: arr[1]
-          };
-          return res;
-        })
-    );
-  }
-
-  loadTableRowsNum(args: TableArgs): Promise<number> {
-    return (
-      loadRowsNum(this.getConnRef(), this.database, args.tableName)
-    );
-  }
-
-  loadTableData(args: TableDataArgs): Promise<TableData> {
-    const { tableName, fromRow, rowsNum } = args;
-    const where = '';
-    const sql = `select * from ${this.database}.${tableName} ${where} limit ? offset ?`;
-    return (
-      all<Object>(this.getConnRef(), sql, [rowsNum, fromRow])
-        .then((rows: Array<StrMap>) => {
-          return {
-            rows,
-            fromRow,
-            rowsNum
-          };
-        })
-    );
-  }
-
-  getTempTableKey(args: TmpTableArgs): string {
-    const keyObj: { n: string, cn?: number, cols?: Array<string> } = {
-      n: args.tableName
-    };
-
-    if (args.columns) {
-      keyObj.cn = args.columns.length;
-      keyObj.cols = args.columns;
-    }
-
-    return JSON.stringify(keyObj);
-  }
-
-  createTempTable(args: TmpTableArgs): Promise<TableInfo> {
-    const key = this.getTempTableKey(args);
-    const table = this.tempTables[key];
-    if (table)
-      return this.loadTableInfo({ tableName: table.tableName });
-
-    this.tmpTableCounter++;
-    const where = '';
-    const groupBy = '';
-    const orderBy = '';
-    const cols = args.columns ? args.columns.join(', ') : '*';
-    const tmpTableName = `tmp_table_${this.tmpTableCounter}`;
-    const sql = `use ${this.database}; create temporary table ${tmpTableName} as select ${cols} from ${args.tableName} ${where} ${groupBy} ${orderBy}`.trim();
-    const conn = this.getConnRef();
-    return (
-      // exec(conn, `use ${this.database}`)
-      Promise.resolve()
-      .then(() => {
+      .then(arr => {
         return (
-          exec(conn, sql)
-          .then(() => {
-            this.tempTables[key] = {
-              tableName: tmpTableName,
-              columns: args.columns
-            };
-
-            return this.loadTableInfo({ tableName: tmpTableName });
-          })
+          Promise.all(
+            arr.map(table => 
+              this.loadTableGuid({ tableName: table, desc: true })
+              .then(res => {
+                return { ...res.desc, tableName: table };
+              })
+            )
+          )
         );
+      }).then(list => {
+        return this.tableList = list;
       })
     );
   }
 
-  createTable(args: CreateTableArgs): Promise<TableInfo> {
+  loadTableGuid(args: LoadTableGuidArgs): Promise<LoadTableGuidResult> {
+    const argsKey = getArgsKey(args);
+    const guid = this.argsToGuid[argsKey];
+    let guidData = guid ? this.guidMap[guid] : null;
+
+    let p: Promise<{ guid: string }> = Promise.resolve({ guid });
+    if (!guidData)
+      p = this.createTableGuid(args, argsKey);
+    else if (guidData.invalid)
+      p = this.createTempTable(guid)
+      .then(res => {
+        guidData.desc.rowsNum = res.rowsNum;
+        guidData.desc.columns = res.columns;
+        return { guid };
+      });
+
+    return (
+      p.then(res => {
+        if (!args.desc)
+          return res;
+
+        return {
+          guid: res.guid,
+          desc: this.guidMap[res.guid].desc
+        };
+      })
+    );
+  }
+
+  createTableGuid(args: LoadTableGuidArgs, argsKey?: string): Promise<{ guid: string }> {
+    argsKey = argsKey || getArgsKey(args);
+    const { desc, ...other } = args;
+    const id = this.tmpTableCounter++;
+    const tmpTable = 'tmpt_' + id;
+    const guid = 'guid_' + id;
+
+    this.guidMap[guid] = {
+      args: other,
+      desc: { tableName: args.tableName, columns: [], rowsNum: 0 },
+      tmpTable,
+      invalid: false,
+      createTask: null
+    };
+    this.argsToGuid[argsKey] = guid;
+
+    return (
+      this.createTempTable(guid)
+      .then(res => {
+        this.guidMap[guid].desc = {
+          tableName: args.tableName,
+          columns: res.columns,
+          rowsNum: res.rowsNum
+        };
+
+        return { guid };
+      })
+    );
+  }
+
+  loadTableRowsNum(args: TableGuid): Promise<number> {
+    return (
+      this.getGuidData(args.guid)
+      .then(data => loadRowsNum(this.getConnRef(), this.database, data.tmpTable))
+    );
+  }
+
+  loadTableData(args: LoadTableDataArgs): Promise<LoadTableDataResult> {
+    return (
+      this.getGuidData(args.guid)
+      .then(data => {
+        const where = '';
+        const sql = `select * from ${this.database}.${data.tmpTable} ${where} limit ? offset ?`;
+        return all<Object>(this.getConnRef(), sql, [args.count, args.from]);
+      })
+      .then((rows: Array<StrMap>) => {
+        return {
+          rows,
+          fromRow: args.from,
+          rowsNum: args.count
+        };
+      })
+    );
+  }
+
+  createTempTable(guid: string): Promise<TableDescShort> {
+    const data = this.guidMap[guid];
+    if (data.createTask)
+      return data.createTask;
+
+    let cols = '*';
+    const tmpTable = data.tmpTable;
+    const table = data.desc.tableName;
+    const where = data.args.cond ? 'where ' + getCompoundSQLCond(data.args.cond) : '';
+    const groupBy = '';
+    const orderBy = '';
+    let sql = `use ${this.database};`;
+    sql += `create temporary table ${tmpTable} as select ${cols} from ${table} ${where} ${groupBy} ${orderBy}`;
+
+    console.log(sql);
+    return (
+      data.createTask = deleteTable(this.getConnRef(), this.database, tmpTable)
+      .then(() => exec(this.getConnRef(), sql))
+      .then(() => 
+        Promise.all([
+          loadTableInfo(this.getConnRef(), this.database, tmpTable),
+          loadRowsNum(this.getConnRef(), this.database, tmpTable)
+        ])
+      )
+      .then(arr => {
+        data.invalid = false;
+        data.createTask = null;
+        return {
+          columns: arr[0].map(c => ({ colName: c.name, colType: c.type })),
+          rowsNum: arr[1]
+        };
+      })
+    );
+  }
+
+  createTable(args: CreateTableArgs): Promise<TableDesc> {
     return (
       createTable(
         this.getConnRef(),
@@ -233,14 +372,84 @@ export class Database2 extends DatabaseBase {
             ...col
           };
         })
-      )
+      ).then(res => {
+        this.tableList = null;
+        return this.loadTableList().then(() => res);
+      })
     );
   }
 
   deleteTable(args: DeleteTableArgs): Promise<void> {
     return (
       deleteTable(this.getConnRef(), this.database, args.tableName)
+      .then(() => {
+        this.tableList = null;
+        return this.loadTableList().then(() => {});
+      })
     );
+  }
+
+  deleteData(args: DeleteDataArgs): Promise<void> {
+    return (
+      deleteData({
+        conn: this.getConnRef(),
+        db: this.database,
+        table: args.tableName,
+        where: getCompoundSQLCond(args.cond)
+      })
+      .then(() => this.invalidateGuids(args.tableName))
+    );
+  }
+
+  getGuidData(guid: string): Promise<GuidMapData> {
+    const data = this.guidMap[guid];
+    if (!data)
+      return Promise.reject(`guid = ${guid} not found`);
+
+    if (!data.invalid)
+      return Promise.resolve(data);
+
+    return (
+      this.createTempTable(guid)
+      .then(res => {
+        data.desc.columns = res.columns;
+        data.desc.rowsNum = res.rowsNum;
+
+        return data;
+      })
+    );
+  }
+
+  loadAggrData(args: LoadAggrDataArgs): Promise<LoadAggrDataResult> {
+    return (
+      this.getGuidData(args.guid)
+      .then(data => {
+        let sqlArr = args.values.map((v, i) => aggConv(v.aggs, v.column) + ` as col${i}`);
+        return get(this.getConnRef(), `select ${sqlArr.join(', ')} from ${this.database}.${data.tmpTable}`);
+      })
+      .then(res => {
+        return {
+          values: args.values.map((v, i) => {
+            return {
+              column: v.column,
+              aggs: v.aggs,
+              value: res['col'+i]
+            };
+          })
+        };
+      })
+    );
+  }
+
+  invalidateGuids(table: string) {
+    Object.keys(this.guidMap)
+    .forEach(key => {
+      const data = this.guidMap[key];
+      if (data.desc.tableName != table || data.invalid)
+        return;
+
+      data.invalid = true;
+    });
   }
 
   pushData(args: PushDataArgs): Promise<PushDataResult> {
@@ -251,7 +460,22 @@ export class Database2 extends DatabaseBase {
         table: args.tableName,
         values: args.rows
       })
-      .then(pushRows => ({ pushRows }))
+      .then(() => {
+        this.invalidateGuids(args.tableName);
+        this.tableList = null;
+        return { pushRows: args.rows.length };
+      })
+    );
+  }
+
+  updateData(args: UpdateDataArgs): Promise<void> {
+    const vals = args.values.map(value => `${sqlColumn(value.column)}=?`).join(',');
+    const where = args.cond ? 'where ' + getCompoundSQLCond(args.cond) : '';
+    // const limit = args.limit != null ? `limit ${args.limit}` : '';
+    const sql = `update ${sqlTable(args.tableName)} set ${vals} ${where}`;
+    return (
+      all(this.getConnRef(), sql, args.values.map(v => v.value))
+      .then(() => this.invalidateGuids(args.tableName))
     );
   }
 
