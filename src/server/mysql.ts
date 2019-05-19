@@ -1,61 +1,11 @@
 import * as mysql from 'mysql';
-import {
-  ColumnAttr,
-  Columns,
-  PushRowArgs,
-  Condition,
-  CompoundCond,
-  ValueCond
-} from 'objio-object/base/database/table';
+import { ColumnAttr, Columns, PushRowArgs } from './mysql-decl';
 
 export function loadRowsNum(conn: mysql.Connection, db: string, table: string): Promise<number> {
   return (
     get<{count: number}>(conn, `select count(*) as count from ${db}.${table}`)
     .then(res => res.count)
   );
-}
-
-export function getCompSqlCondition(cond: CompoundCond, col?: string): string {
-  let sql = '';
-  if (cond.values.length == 1) {
-    sql = getSqlCondition(cond.values[0]);
-  } else {
-    sql = cond.values.map(cond => {
-      return `( ${getSqlCondition(cond)} )`;
-    }).join(` ${cond.op} `);
-  }
-
-  if (cond.table && col)
-    sql = `select ${col} from ${cond.table} where ${sql}`;
-
-  return sql;
-}
-
-export function getSqlCondition(cond: Condition): string {
-  const comp = cond as CompoundCond;
-
-  if (comp.op && comp.values)
-    return getCompSqlCondition(comp);
-
-  const condVal = cond as ValueCond;
-
-  if (Array.isArray(condVal.value) && condVal.value.length == 2) {
-    return `${condVal.column} >= ${condVal.value[0]} and ${condVal.column} <= ${condVal.value[1]}`;
-  } else if (typeof condVal.value == 'object') {
-    const val = condVal.value as CompoundCond;
-    return `${condVal.column} in (select ${condVal.column} from ${val.table} where ${getCompSqlCondition(val)})`;
-  }
-
-  let value = condVal.value;
-  let op: string;
-  if (condVal.like) {
-    op = condVal.inverse ? ' not like ' : ' like ';
-    if (value.indexOf('%') == -1 && value.indexOf('_') == -1)
-      value = '%' + value + '%';
-  } else {
-    op = condVal.inverse ? '!=' : '=';
-  }
-  return `${condVal.column}${op}"${value}"`;
 }
 
 export function exec(conn: mysql.Connection, sql: string): Promise<any> {

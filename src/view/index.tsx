@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { registerViews, OBJIOItemClassViewable } from 'objio-object/view/config';
-import { Database, Props, DatabaseView, DatabaseConfig } from './database-view';
 import { Props as ConnProps, ConnectionView, ConnectionConfig } from 'objio-object/view/connection-view';
 import { Connection } from '../client/connection';
 import 'ts-react-ui/typings';
@@ -16,6 +15,7 @@ export function getObjectsToCreate(): Array<ObjectToCreate> {
     {
       name: 'mysql',
       desc: 'mysql database',
+      icon: <Icon src={DBIcon}/>,
       create: () => new DatabaseHolder({ impl: new Database2() })
     }, {
       name: 'mysql connection',
@@ -26,18 +26,6 @@ export function getObjectsToCreate(): Array<ObjectToCreate> {
 }
 
 export function getViews(): Array<OBJIOItemClassViewable> {
-  registerViews({
-    classObj: Database,
-    views: [{
-      view: (props: Props) => <DatabaseView {...props}/>
-    }],
-    config: props => <DatabaseConfig {...props}/>,
-    flags: ['create-wizard'],
-    sources: [ [ Connection ] ],
-    desc: 'Mysql database',
-    icons: { item:  <Icon src={DBIcon}/> }
-  });
-
   registerViews({
     classObj: Connection,
     views: [{
@@ -50,7 +38,6 @@ export function getViews(): Array<OBJIOItemClassViewable> {
   });
 
   return [
-    Database,
     Connection
   ];
 }

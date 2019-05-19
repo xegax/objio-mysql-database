@@ -13,7 +13,7 @@ import {
   LoadAggrDataArgs,
   LoadAggrDataResult,
   UpdateDataArgs
-} from 'objio-object/base/database-holder-decl';
+} from 'objio-object/base/database/database-holder-decl';
 import { DatabaseBase } from '../base/database2';
 import { IDArgs } from 'objio-object/common/interfaces';
 import { Connection } from './connection';
