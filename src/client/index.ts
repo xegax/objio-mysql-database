@@ -1,10 +1,10 @@
 import { OBJIOItemClass } from 'objio';
 import { Connection } from './connection';
-import { Database2 } from './database2';
+import { Database } from './database';
 
 export function getClasses(): Array<OBJIOItemClass> {
   return [
-    Database2,
+    Database,
     Connection
   ];
 }

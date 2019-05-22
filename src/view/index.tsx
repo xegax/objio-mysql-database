@@ -8,7 +8,7 @@ import * as ConnIcon from '../images/mysql-connection.svg';
 import * as DBIcon from '../images/mysql-database.svg';
 import { ObjectToCreate }  from 'objio-object/common/interfaces';
 import { DatabaseHolder } from 'objio-object/client/database/database-holder';
-import { Database2 } from '../client/database2';
+import { Database } from '../client/database';
 
 export function getObjectsToCreate(): Array<ObjectToCreate> {
   return [
@@ -16,7 +16,7 @@ export function getObjectsToCreate(): Array<ObjectToCreate> {
       name: 'mysql',
       desc: 'mysql database',
       icon: <Icon src={DBIcon}/>,
-      create: () => new DatabaseHolder({ impl: new Database2() })
+      create: () => new DatabaseHolder({ impl: new Database() })
     }, {
       name: 'mysql connection',
       desc: 'mysql connection',

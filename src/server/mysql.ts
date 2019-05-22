@@ -1,5 +1,6 @@
 import * as mysql from 'mysql';
 import { ColumnAttr, Columns, PushRowArgs } from './mysql-decl';
+import { func } from 'prop-types';
 
 export function loadRowsNum(conn: mysql.Connection, db: string, table: string): Promise<number> {
   return (
@@ -129,6 +130,10 @@ export function loadTableInfo(conn: mysql.Connection, db: string, table: string)
   return all<ColumnAttr>(conn, `describe ${db}.${table}`).then(res => {
     return res.map(row => ({name: row['Field'], type: row['Type']}));
   });
+}
+
+export function deleteDatabase(conn: mysql.Connection, db: string) {
+  return exec(conn, `drop database ${db}`);
 }
 
 export function insert(args: PushRowArgs & { db: string, table: string; conn: mysql.Connection }): Promise<any> {
