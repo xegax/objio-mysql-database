@@ -32,7 +32,8 @@ import {
   loadDatabaseList,
   deleteData,
   get,
-  deleteDatabase
+  deleteDatabase,
+  createDatabase
 } from './mysql';
 import { Connection } from './connection';
 import { StrMap, IDArgs } from 'objio-object/common/interfaces';
@@ -129,10 +130,6 @@ export class Database extends DatabaseBase {
         method: (args: DeleteDataArgs) => this.deleteData(args),
         rights: 'write'
       },
-      deleteDatabase: {
-        method: (args: { name: string }) => this.deleteDatabase(args.name),
-        rights: 'write'
-      },
       loadAggrData: {
         method: (args: LoadAggrDataArgs) => this.loadAggrData(args),
         rights: 'read'
@@ -147,6 +144,14 @@ export class Database extends DatabaseBase {
       },
       setDatabase: {
         method: (args: { database: string }) => this.setDatabase(args.database),
+        rights: 'write'
+      },
+      createDatabase: {
+        method: (args: { database: string }) => this.createDatabase(args.database),
+        rights: 'write'
+      },
+      deleteDatabase: {
+        method: (args: { database: string }) => this.deleteDatabase(args.database),
         rights: 'write'
       }
     });
@@ -176,13 +181,22 @@ export class Database extends DatabaseBase {
     );
   }
 
-  setDatabase(database: string): Promise<void> {
-    if (this.database == database)
-      return Promise.resolve();
+  createDatabase(database: string): Promise<void> {
+    return (
+      createDatabase(this.getConnRef(), database)
+      .then(() => {
+        this.holder.save(true);
+      })
+    );
+  }
 
-    this.database = database;
-    this.holder.save();
-    return Promise.resolve();
+  deleteDatabase(db: string) {
+    return (
+      deleteDatabase(this.getConnRef(), db)
+      .then(() => {
+        this.holder.save(true);
+      })
+    );
   }
 
   loadDatabaseList() {
@@ -285,10 +299,6 @@ export class Database extends DatabaseBase {
     return (
       deleteTable(this.getConnRef(), this.database, args.table)
     );
-  }
-
-  deleteDatabase(db: string) {
-    return deleteDatabase(this.getConnRef(), db);
   }
 
   deleteData(args: DeleteDataArgs): Promise<void> {

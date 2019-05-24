@@ -136,6 +136,10 @@ export function deleteDatabase(conn: mysql.Connection, db: string) {
   return exec(conn, `drop database ${db}`);
 }
 
+export function createDatabase(conn: mysql.Connection, db: string) {
+  return exec(conn, `create database ${db}`);
+}
+
 export function insert(args: PushRowArgs & { db: string, table: string; conn: mysql.Connection }): Promise<any> {
   const cols: {[name: string]: number} = {};
   const valuesArr = Array<string>();
