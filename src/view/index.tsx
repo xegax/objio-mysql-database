@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { registerViews, OBJIOItemClassViewable } from 'objio-object/view/config';
-import { Props as ConnProps, ConnectionView, ConnectionConfig } from 'objio-object/view/connection-view';
+import { Props as ConnProps, ConnectionView } from 'objio-object/view/connection-view';
 import { Connection } from '../client/connection';
 import 'ts-react-ui/typings';
 import { Icon } from 'ts-react-ui/icon';
@@ -31,8 +31,6 @@ export function getViews(): Array<OBJIOItemClassViewable> {
     views: [{
       view: (props: ConnProps) => <ConnectionView {...props}/>
     }],
-    config: props => <ConnectionConfig {...props}/>,
-    flags: ['create-wizard'],
     desc: 'Mysql connection',
     icons: { item:  <Icon src={ConnIcon}/> }
   });
