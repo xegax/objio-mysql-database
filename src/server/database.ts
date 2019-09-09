@@ -4,13 +4,10 @@ import {
   PushDataArgs,
   PushDataResult,
   LoadTableDataArgs,
-  LoadTableGuidArgs,
   DeleteDataArgs,
   LoadAggrDataArgs,
   TableDesc,
   TableDescShort,
-  LoadTableGuidResult,
-  CompoundCond,
   ValueCond,
   UpdateDataArgs,
   AggregationFunc,
@@ -18,7 +15,8 @@ import {
   LoadTableDataResult,
   CreateTempTableArgs,
   TableArgs,
-  RangeCond
+  RangeCond,
+  CompoundCond
 } from 'objio-object/base/database/database-decl';
 import { DatabaseBase } from '../base/database';
 import {
