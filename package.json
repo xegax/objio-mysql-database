@@ -1,6 +1,6 @@
 {
   "name": "objio-mysql-database",
-  "version": "0.0.41",
+  "version": "0.0.42",
   "description": "",
   "main": "index.js",
   "repository": "git@github.com:xegax/objio-mysql-database.git",
@@ -21,10 +21,10 @@
   },
   "dependencies": {
     "mysql": "^2.16.0",
-    "objio": "^0.0.41",
-    "objio-object": "^0.0.41",
+    "objio": "^0.0.42",
+    "objio-object": "^0.0.42",
     "react": "^16.4.1",
     "react-dom": "^16.4.1",
-    "ts-react-ui": "^0.1.41"
+    "ts-react-ui": "^0.1.42"
   }
 }
